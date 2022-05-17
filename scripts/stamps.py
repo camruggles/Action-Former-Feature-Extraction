@@ -11,7 +11,7 @@ import time
 
 from multiprocessing import Process, Queue
 
-savepath="/home/cruggles/stamps/"
+savepath="./stamps/"
 
 
 entries = ['video_validation_0000051.mp4',

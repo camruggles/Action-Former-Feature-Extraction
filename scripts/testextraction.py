@@ -6,15 +6,15 @@ import pdb
 import torch
 import torchvision
 import numpy  as np
-from my import I3D_BackBone
+from i3d import I3D_BackBone
 
 # set paths
-dirpath = './thumosextraction/test/' # location of test videos
+dirpath = './testvideos/' # location of test videos
 nppath = './testfeatures/' # output directory
-featurepath = '/home/cruggles/temporary/thumos/i3d_features/' # location of test features (need to merge with optical flow)
+featurepath = './oldfeatures' # location of test features (need to merge with optical flow)
 file1 = "list.txt" # list of extracted features
 file2 = "todo.txt" # list of filenames of test feature filenames
-model_path="/home/cruggles/rgb_imagenet.pt"
+model_path="./rgb_imagenet.pt"
 
 # get all the completed files
 f = open(file1, "r")

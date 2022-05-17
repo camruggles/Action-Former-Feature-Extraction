@@ -6,10 +6,10 @@ import pdb
 import torch
 import torchvision
 import numpy  as np
-from my import I3D_BackBone
+from i3d import I3D_BackBone
 
 # the location of the files and features to be output
-dirpath = './thumosextraction/validation/' # the location of the videos
+dirpath = './valvideos/' # the location of the videos
 nppath = './features/' # the location where the features are to be output
 
 file1 = "./list.txt" # the list of files that have completed extraction

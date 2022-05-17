@@ -5,10 +5,10 @@ import numpy as np
 import os
 
 
-neopath = "/home/cruggles/temporary/neothumos/i3d_features/" # location of where new features are to be aved
-oldpath = "/home/cruggles/temporary/thumos/i3d_features/" # location of features downloaded from actionformer
+neopath = "./i3d_features/" # location of where new features are to be aved
+oldpath = "./oldfeats/" # location of features downloaded from actionformer
 path = "./features/" # location of fresh features
-file1 = 'transfer.txt' # list of the filenames of features
+file1 = 'transfer.txt' # list of the filenames of features # separates test and validation
 
 f = open(file1, "r")
 files = f.read().split("\n")
