@@ -54,6 +54,7 @@ Step 4 : run training
 set the parameters in the config yaml and then run training
 
 
+python ./train.py ./configs/thumos_i3d.yaml --output <name of the checkpoint file you want>
 
 
 
