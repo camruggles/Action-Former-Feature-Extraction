@@ -352,7 +352,6 @@ class InceptionI3d(nn.Module):
         for k in self.end_points.keys():
             self.add_module(k, self.end_points[k])
 
-
     def forward(self, x):
         #pdb.set_trace()
         for end_point in self.VALID_ENDPOINTS:
@@ -394,36 +393,18 @@ freeze_bn_affine = True # config['model']['freeze_bn_affine']
 
 class I3D_BackBone(nn.Module):
     def __init__(self, final_endpoint='Mixed_5c', name='inception_i3d', in_channels=3,
-                 freeze_bn=freeze_bn, freeze_bn_affine=freeze_bn_affine, freeze_layers=[]):
+                 freeze_bn=freeze_bn, freeze_bn_affine=freeze_bn_affine):
         super(I3D_BackBone, self).__init__()
         print(final_endpoint)
         self._model = InceptionI3d(final_endpoint=final_endpoint,
                                    name=name,
                                    in_channels=in_channels)
-        print(self._model.end_points['Mixed_5c'])
-        self.freeze(freeze_layers)
-
         self._model.build()
         self._freeze_bn = freeze_bn
         self._freeze_bn_affine = freeze_bn_affine
 
     def load_pretrained_weight(self, model_path='models/i3d_models/rgb_imagenet.pt'):
         self._model.load_state_dict(torch.load(model_path), strict=False)
-
-
-    def disable_bn(self):
-        for name, m in self._model.named_modules():
-            if isinstance(m, torch.nn.BatchNorm3d):
-                m.track_running_stats=False
-                m.requires_grad_(False)
-                m.eval()
-    def freeze(self, layers):
-        for layer in layers:
-            assert layer in self._model.end_points.keys()
-            section = self._model.end_points[layer]
-            for m in section.modules():
-                if isinstance(m, torch.nn.Conv3d):
-                    m.requires_grad_(False)
 
     def train(self, mode=True):
         super(I3D_BackBone, self).train(mode)
@@ -435,7 +416,7 @@ class I3D_BackBone(nn.Module):
                     m.eval()
                     if self._freeze_bn_affine:
                         m.weight.requires_grad_(False)
-                        m.bias.requires_grad_(False) 
+                        m.bias.requires_grad_(False)
 
     def forward(self, x):
         #self._model.extract_features(x)

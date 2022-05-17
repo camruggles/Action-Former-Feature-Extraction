@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.utils.data
 # for visualization
 from torch.utils.tensorboard import SummaryWriter
-from my import I3D_BackBone
+from libs.modeling import I3D_BackBone
 
 # our code
 from libs.core import load_config
@@ -22,7 +22,6 @@ from libs.utils import convert_model
 from libs.utils import (train_one_epoch, valid_one_epoch, ANETdetection,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
-
 
 ################################################################################
 def main(args):
@@ -86,6 +85,7 @@ def main(args):
 
     extractor = nn.DataParallel(extractor, device_ids=cfg['ext_devices'])
     extractor = extractor.to(torch.device("cuda:0"))
+    pdb.set_trace()
 
     # optimizer
     optimizer = make_optimizer(model, extractor, cfg['opt'])
@@ -170,10 +170,9 @@ def main(args):
                 file_folder=ckpt_folder,
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
-            torch.save(extractor.module._model.state_dict(), cfg['extractor_save_path'])
+            torch.save(extractor.module._model.state_dict(), ckpt_folder + '/i3drgb_thumos_epoch_{:03d}.pt'.format(epoch) )
 
     # wrap up
-    torch.save(extractor.module._model.state_dict(), cfg['extractor_save_path'])
     tb_writer.close()
     print("All done!")
     return

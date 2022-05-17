@@ -10,6 +10,7 @@ dataset: {
   feat_folder: ./data/thumos/i3d_features,
   val_path: /home/cruggles/THUMOS/thumosextraction/validation,
   stampsfolder: /home/cruggles/stamps/,
+  num_clips_updated: 40,
   file_prefix: ~,
   file_ext: .npy,
   num_classes: 20,

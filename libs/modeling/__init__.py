@@ -5,7 +5,9 @@ from . import backbones      # backbones
 from . import necks          # necks
 from . import loc_generators # location generators
 from . import meta_archs     # full models
+from . import i3d
+from .i3d import I3D_BackBone
 
 __all__ = ['MaskedConv1D', 'MaskedMHCA', 'MaskedMHA', 'LayerNorm'
            'TransformerBlock', 'ConvBlock', 'Scale', 'AffineDropPath',
-           'make_backbone', 'make_neck', 'make_meta_arch', 'make_generator']
+           'make_backbone', 'make_neck', 'make_meta_arch', 'make_generator', 'I3D_BackBone']

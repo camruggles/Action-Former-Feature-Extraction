@@ -54,7 +54,8 @@ class THUMOS14Dataset(Dataset):
         file_ext,        # feature file extension if any
         force_upsampling, # force to upsample to max_seq_len
         val_path,
-        stampsfolder
+        stampsfolder,
+        num_clips_updated
     ):
         # file path
         assert os.path.exists(feat_folder) and os.path.exists(json_file)
@@ -93,6 +94,7 @@ class THUMOS14Dataset(Dataset):
         # feature extractor folders
         self.val_path = val_path
         self.stampsfolder = stampsfolder
+        self.num_clips_updated = num_clips_updated
 
         # dataset specific attributes
         self.db_attributes = {
@@ -231,7 +233,7 @@ class THUMOS14Dataset(Dataset):
         # get metainfo
         C,T = feats.shape
         (st,ed) = data_dict['tempinfo'] # start and endpoints of trunc_feats subset from feature file
-        M = 40 # the number M out of T clip features to update
+        M = self.num_clips_updated # the number M out of T clip features to update
         frameloc_orig = random.randint(st, ed-2-M) # location of updated features in feature vector
         # sample between st and ed since a subset of the full features are selected in truncate feats
         frames = []
