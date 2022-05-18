@@ -28,8 +28,7 @@ To speed up video loading during training, it is necessary to extract video meta
 
 in stamps.py
 * change line 14 to an output folder
-
-# on line 17 have a filename that contains the filenames to look at
+* on line 17 have a filename that contains the filenames to look at
 
 run the file stamps.py
 ```shell
