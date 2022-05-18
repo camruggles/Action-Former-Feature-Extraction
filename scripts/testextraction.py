@@ -5,16 +5,17 @@ import time
 import pdb
 import torch
 import torchvision
+import torch.nn as nn
 import numpy  as np
 from i3d import I3D_BackBone
 
 # set paths
-dirpath = './testvideos/' # location of test videos
+dirpath = './thumosextraction/test/' # location of test videos
 nppath = './testfeatures/' # output directory
-featurepath = './oldfeatures' # location of test features (need to merge with optical flow)
+featurepath = '/home/cruggles/temporary/thumos/i3d_features/' # location of test features (need to merge with optical flow)
 file1 = "list.txt" # list of extracted features
 file2 = "todo.txt" # list of filenames of test feature filenames
-model_path="./rgb_imagenet.pt"
+model_path="/home/cruggles/rgb_imagenet.pt"
 
 # get all the completed files
 f = open(file1, "r")
@@ -47,7 +48,7 @@ def getBounds(n):
   i=0
   while i < n:
     arr.append(i)
-    i += 100
+    i += 250
   arr.append(n)
   return arr
 
@@ -58,6 +59,7 @@ def getBounds(n):
 model = I3D_BackBone(final_endpoint='Logits')
 # load weights
 model.load_pretrained_weight(model_path=model_path)
+model = nn.DataParallel(model, device_ids=[0,1])
 # set to eval
 model.eval()
 # send model to device
@@ -77,6 +79,7 @@ with torch.no_grad():
     # get the filename
     path = dirpath+ent
     print(ent)
+    filename = ent[:-4]
 
 
     # read the video from the file path
@@ -85,7 +88,7 @@ with torch.no_grad():
 
     # there was a glitch with some files where timestamps couldn't be loaded, so they were handledd differently
     stampsflag = True
-    stamps, _ = torchvision.io.read_video_timestamps(path, 'pts')
+    stamps = np.load('./teststamps/' + filename + '_stamps.npy')
     print(len(stamps))
 
 
