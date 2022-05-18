@@ -4,9 +4,7 @@
 First, a baseline set of features must be extracted using i3d backbone.
 
 * go to extract.py
-
 * changes lines 12-16 accordingly
-
 * run these lines
 
 ```shell
@@ -29,7 +27,7 @@ this will compute features for all the validation videos using the i3d backbone
 To speed up video loading during training, it is necessary to extract video meta data.
 
 in stamps.py
-*change line 14 to an output folder
+* change line 14 to an output folder
 
 # on line 17 have a filename that contains the filenames to look at
 
@@ -95,7 +93,9 @@ python testextraction.py
 ## Step 6 : run test code
 
 the actionformer code has no changes for validation
+
 move the test features into the correct folder
+
 run it as normal and get the results
 
 
