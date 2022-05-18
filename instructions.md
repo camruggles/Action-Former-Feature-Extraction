@@ -10,8 +10,8 @@ First, a baseline set of features must be extracted using i3d backbone.
 * run these lines
 
 ```shell
-ls <folder of completed features>   > list.txt
-ls <folder of validation files>     > todo.txt
+ls "folder of completed features"   > list.txt
+ls "folder of validation files"     > todo.txt
 ```
 then
 
@@ -50,7 +50,7 @@ this will extract and save all of the time stamps for the validation videos in a
 run
 
 ```shell
-ls < folder where validation FEATURES are saved>     > transfer.txt
+ls " folder where validation FEATURES are saved"     > transfer.txt
 ```
 
 * change lines 8-11 in the setfeatures.py
@@ -66,7 +66,7 @@ use setfeatures.py to save the newly extracted features over the old files, wher
 set the parameters in the config yaml and then run training
 
 ```shell
-python ./train.py ./configs/thumos_i3d.yaml --output <name of the checkpoint file you want>
+python ./train.py ./configs/thumos_i3d.yaml --output "name of the checkpoint file you want"
 ```
 
 
@@ -83,8 +83,8 @@ python testextraction.py
 *edit lines 12-16 of testextraction.py and then
 *do  these commands
 ```shell
-ls <folder of test features> > list.txt
-ls <folder of test videos> > todo.txt
+ls "folder of test features" > list.txt
+ls "folder of test videos" > todo.txt
 python testextraction.py
 ```
 
