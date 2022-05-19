@@ -16,7 +16,6 @@ from libs.core import load_config
 from libs.datasets import make_dataset, make_data_loader
 from libs.modeling import make_meta_arch
 from libs.utils import valid_one_epoch, ANETdetection, fix_random_seed
-from my import I3D_BackBone
 
 
 ################################################################################
@@ -59,10 +58,13 @@ def main(args):
     # not ideal for multi GPU training, ok for now
     model = nn.DataParallel(model, device_ids=[0])#cfg['devices'])
     print(model.module.device)
+    extractor=None
+    '''
     extractor = I3D_BackBone(final_endpoint='Logits')
     extractor.load_pretrained_weight("/home/cruggles/rgb_thumos.pt")
     extractor = nn.DataParallel(extractor, device_ids=[0,1])
     extractor = extractor.to(torch.device("cuda:0"))
+    '''
     
 
     """4. load ckpt"""

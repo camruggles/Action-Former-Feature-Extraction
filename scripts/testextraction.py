@@ -12,11 +12,11 @@ from i3d import I3D_BackBone
 # set paths
 dirpath = '/home/cruggles/THUMOS/thumosextraction/test/' # location of test videos
 nppath = './testfeatures/' # output directory
-featurepath = '/home/cruggles/temporary/truethumos/i3d_features/' # location of test features (need to merge with optical flow)
+featurepath = '/home/cruggles/temporary/truthumos/i3d_features/' # location of test features (need to merge with optical flow)
 stampspath = './stamps/'
 file1 = "list.txt" # list of extracted features
 file2 = "todo.txt" # list of filenames of test feature filenames
-model_path="../ckpt/thumos_i3d_i3dtrainingi3drgb_thumos_epoch_080.pt"
+model_path="../ckpt/thumos_i3d_i3dtrainingi3drgb_thumos_epoch_050.pt"
 
 # get all the completed files
 f = open(file1, "r")
@@ -143,6 +143,7 @@ with torch.no_grad():
         i1 = bounds[j]
         i2 = bounds[j+1]
         print(i2, '/', N)
+        sys.stdout.flush()
         clips = []
 
         # extract clips

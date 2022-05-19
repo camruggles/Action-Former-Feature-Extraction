@@ -50,7 +50,7 @@ run
 ls " folder where validation FEATURES are saved"     > transfer.txt
 ```
 
-* change lines 8-11 in the setfeatures.py
+* change lines 8 and on in the setfeatures.py to reflect the correct file paths
 
 use setfeatures.py to save the newly extracted features over the old files, where the optical flow data is saved
 
@@ -73,18 +73,21 @@ python ./train.py ./configs/thumos_i3d.yaml --output "name of the checkpoint fil
 The network from step 4 will be saved somewhere as dictated by the yaml
 use this network to re extract new features on the test videos
 
+First, repeat step 2 on the test videos.  On a multicore computer this should only take 5 minutes.
+
 ```shell
 python testextraction.py
 ```
 
-*edit lines 12-16 of testextraction.py and then
+*edit the file paths starting at line 12 of testextraction.py and then
 *do  these commands
 ```shell
 ls "folder of test features" > list.txt
 ls "folder of test videos" > todo.txt
 python testextraction.py
 ```
-
+The first command should create an empty file on the first go through.
+If the program stops halfway for whatever reason then you can re update list and start again.
 
 
 

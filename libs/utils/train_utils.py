@@ -293,12 +293,13 @@ def train_one_epoch(
             break # comment out for option two
             v = video_list[i]['raw']
             indexer.append(indexer[-1] + v.shape[0])
-        #clipstack = torch.empty(indexer[-1], 3, 16, 224, 224) # uncomment for option two
+        clipstack = torch.empty(0,3,16,224,224)
 
         for i in range(len(video_list)):
             break # comment out for option two
             v = video_list[i]['raw']
-            clipstack[indexer[i]:indexer[i+1], :] = v
+            clipstack = torch.cat([clipstack, v], dim=0)
+            #clipstack[indexer[i]:indexer[i+1], :] = v
 
         #extractedfeats = extractor(clipstack) # uncomment for option two
         for i in range(len(video_list)):
@@ -482,8 +483,9 @@ def valid_one_epoch(
                         e = output[vid_idx]['segments'][j,1]
                         sc = output[vid_idx]['scores'][j]
                         if sc > 0.1:
-                          print('\t',actiondict[output[vid_idx]['labels'][j].item()])
-                          print("\t[{} {}] {}".format(s, e, sc))
+                          pass
+                          #print('\t',actiondict[output[vid_idx]['labels'][j].item()])
+                          #print("\t[{} {}] {}".format(s, e, sc))
 
         # printing
         if (iter_idx != 0) and iter_idx % (print_freq) == 0:
