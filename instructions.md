@@ -3,7 +3,7 @@
 
 First, a baseline set of features must be extracted using i3d backbone.
 
-* go to extract.py
+* go to extract.py in scripts
 * changes lines 12-16 accordingly
 * run these lines
 
@@ -26,7 +26,7 @@ this will compute features for all the validation videos using the i3d backbone
 
 To speed up video loading during training, it is necessary to extract video meta data.
 
-in stamps.py
+in stamps.py (in scripts)
 * change line 14 to an output folder
 * on line 17 have a filename that contains the filenames to look at
 
@@ -43,6 +43,9 @@ this will extract and save all of the time stamps for the validation videos in a
 
 
 ## Step 3 : combine extracted features with optical flow features
+Here it is necessary to download the features from the actionformer repository extracted with the FINSPIRE repo in order to get the flow features.
+Come back here when you have downloaded and extracted the i3d features from the original actionformer repo.
+
 
 run
 
@@ -50,7 +53,7 @@ run
 ls " folder where validation FEATURES are saved"     > transfer.txt
 ```
 
-* change lines 8 and on in the setfeatures.py to reflect the correct file paths
+* change lines 8-10 in the setfeatures.py to reflect the correct file paths
 
 use setfeatures.py to save the newly extracted features over the old files, where the optical flow data is saved
 
@@ -73,7 +76,7 @@ python ./train.py ./configs/thumos_i3d.yaml --output "name of the checkpoint fil
 The network from step 4 will be saved somewhere as dictated by the yaml
 use this network to re extract new features on the test videos
 
-First, repeat step 2 on the test videos.  On a multicore computer this should only take 5 minutes.
+First, repeat step 2 on the test videos.  On a multicore computer step 2 should only take 5 minutes.
 
 ```shell
 python testextraction.py
@@ -96,7 +99,7 @@ If the program stops halfway for whatever reason then you can re update list and
 
 the actionformer code has no changes for validation
 
-move the test features into the correct folder
+repeat step 3 and then move the features into the correct folder
 
 run it as normal and get the results
 

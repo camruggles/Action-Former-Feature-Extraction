@@ -311,7 +311,7 @@ def train_one_epoch(
             feats = video_list[i]['feats']
             frames = video_list[i]['frames']
 
-            feats[ :1024 , frames ] = newfeats.squeeze().t().cpu() # does this write straight to the dict?
+            feats[ :1024 , frames ] = newfeats.squeeze().t().cpu()
             video_list[i]['feats'] = feats
         # write feats to file, potential io bottleneck?
             file_name = os.path.join("/home/cruggles/actionformer_release-main/data/thumos/i3d_features", video_list[i]['video_id'] + '.npy')

@@ -214,8 +214,7 @@ class THUMOS14Dataset(Dataset):
                      'full_feats'      : copy.deepcopy(feats), # TODO check the copy operation
                      'tempinfo'        : (0,T), # used to mark which frames are having a feature update
                      'feat_num_frames' : self.num_frames}
-        # frames : frames
-        # raw : raw
+
         # truncate the features during training
         if self.is_training and (segments is not None):
             data_dict = truncate_feats(
@@ -232,14 +231,14 @@ class THUMOS14Dataset(Dataset):
 
         # get metainfo
         C,T = feats.shape
-        (st,ed) = data_dict['tempinfo'] # start and endpoints of trunc_feats subset from feature file
-        M = self.num_clips_updated # the number M out of T clip features to update
-        frameloc_orig = random.randint(st, ed-2-M) # location of updated features in feature vector
+        (start_video,end_video) = data_dict['tempinfo'] # start and endpoints of trunc_feats subset from feature file
+        num_clips_updated = self.num_clips_updated # the number M out of T clip features to update
+        feature_index = random.randint(start_video, end_video-2-M) # location of updated features in feature vector
         # sample between st and ed since a subset of the full features are selected in truncate feats
         frames = []
         if self.is_training:
           stamps = np.load(stampspath)
-        frameloc=frameloc_orig*feat_stride # location of updated features in video frames
+        frame_index=feature_index*feat_stride # location of updated features in video frames
 
 
         raw = [] # torch tensor of video frames
@@ -248,25 +247,18 @@ class THUMOS14Dataset(Dataset):
            pass
         else:
            # extract frame locations using stamps vector
-           video = torchvision.io.read_video(filename, stamps[frameloc], stamps[frameloc+(M-1)*feat_stride+16], 'pts')[0] # note that read_video is inclusive of the second endpoint, so (M-1) is necessary
+           video = torchvision.io.read_video(filename, stamps[frame_index], stamps[frame_index+(num_clips_updated-1)*feat_stride+16], 'pts')[0] # note that read_video is inclusive of the second endpoint, so (M-1) is necessary
            video = process(video) # resize and perform center crop divide by 255
 
         if self.is_training:
           for i in range(M): # check that all 16 frames are being loaded
             v = video[:,(i*feat_stride):(i*feat_stride+16), :,:] # get the video frames
             raw.append(v) # place them in update vector
-            frames.append(frameloc_orig + i - st) # add index location where data dict is updated
-            fileframes.append(frameloc_orig + i) # add index location where the FILE is updated
+            frames.append(feature_index + i) # add index location where data dict is updated
+            fileframes.append(feature_index + i) # add index location where the FILE is updated
             # note that the feature vector used by transformer is a subset of the features in the saved file
             # so it's necessary to update both the file and the data dict
-        else:
-          i =0
-          while False:#i*feat_stride+16 <= video.shape[1]:
-            pass
-            #print(i, i*feat_stride+16, video.shape[1])
-            #v = video[:, (i*feat_stride):(i*feat_stride+16), :, :]
-            #raw.append(v)
-            #i += 1
+
         data_dict['frames'] = frames
         data_dict['fileframes'] = fileframes
         if self.is_training != False:

@@ -18,7 +18,6 @@ from libs.modeling import I3D_BackBone
 from libs.core import load_config
 from libs.datasets import make_dataset, make_data_loader
 from libs.modeling import make_meta_arch
-from libs.utils import convert_model
 from libs.utils import (train_one_epoch, valid_one_epoch, ANETdetection,
                         save_checkpoint, make_optimizer, make_scheduler,
                         fix_random_seed, ModelEma)
@@ -79,13 +78,18 @@ def main(args):
 
     # TODO create feature extractor and load weights
     # selectively freezes layers of extractor network to save gpu memory
-    extractor = I3D_BackBone(final_endpoint='Logits', freeze_layers=['Conv3d_1a_7x7', 'MaxPool3d_2a_3x3', 'Conv3d_2b_1x1', 'Conv3d_2c_3x3', 'MaxPool3d_3a_3x3'])
+    extractor = I3D_BackBone(final_endpoint='Logits', freeze_layers=['Conv3d_1a_7x7', 'MaxPool3d_2a_3x3', 'Conv3d_2b_1x1', 
+        'Conv3d_2c_3x3', 
+        'MaxPool3d_3a_3x3'])
+        # 'Mixed_3b',
+        # 'Mixed_3c',
+        # 'MaxPool3d_4a_3x3',
+        # 'Mixed_4b'])
     extractor.disable_bn()
     extractor.load_pretrained_weight(cfg['extractor_path'])
 
     extractor = nn.DataParallel(extractor, device_ids=cfg['ext_devices'])
     extractor = extractor.to(torch.device("cuda:0"))
-    pdb.set_trace()
 
     # optimizer
     optimizer = make_optimizer(model, extractor, cfg['opt'])
