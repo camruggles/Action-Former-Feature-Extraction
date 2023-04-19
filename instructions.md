@@ -101,8 +101,12 @@ the actionformer code has no changes for validation
 
 repeat step 3 and then move the features into the correct folder
 
-run it as normal and get the results
+run it as normal and get the results using 
 
+python ./eval.py <config file> <ckpt folder>
+
+example:
+python ./eval.py ./configs/thumos_i3d.yaml ./ckpt/thumos_i3d_reproduce
 
 
 Note:

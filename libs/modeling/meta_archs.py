@@ -3,7 +3,8 @@ import math
 import torch
 from torch import nn
 from torch.nn import functional as F
-
+from torch.nn.utils.rnn import pad_sequence
+import pdb
 from .models import register_meta_arch, make_backbone, make_neck, make_generator
 from .blocks import MaskedConv1D, Scale, LayerNorm
 from .losses import ctr_giou_loss_1d, sigmoid_focal_loss
@@ -328,6 +329,7 @@ class PtTransformer(nn.Module):
 
     def forward(self, video_list):
         # batch the video list into feats (B, C, T) and masks (B, 1, T)
+        # pdb.set_trace()
         batched_inputs, batched_masks = self.preprocessing(video_list)
 
         # forward the network (backbone -> neck -> heads)
@@ -382,24 +384,27 @@ class PtTransformer(nn.Module):
             )
             return results
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def preprocessing(self, video_list, padding_val=0.0):
         """
             Generate batched features and masks from a list of dict items
         """
-        feats = [x['feats'] for x in video_list]
-        feats_lens = torch.as_tensor([feat.shape[-1] for feat in feats])
+        feats = [x['feats'].t() for x in video_list]
+        feats_lens = torch.as_tensor([feat.shape[0] for feat in feats])
         max_len = feats_lens.max(0).values.item()
-
+        # pdb.set_trace()
         if self.training:
             assert max_len <= self.max_seq_len, "Input length must be smaller than max_seq_len during training"
             # set max_len to self.max_seq_len
             max_len = self.max_seq_len
             # batch input shape B, C, T
-            batch_shape = [len(feats), feats[0].shape[0], max_len]
-            batched_inputs = feats[0].new_full(batch_shape, padding_val)
-            for feat, pad_feat in zip(feats, batched_inputs):
-                pad_feat[..., :feat.shape[-1]].copy_(feat)
+            # batch_shape = [len(feats), feats[0].shape[0], max_len]
+            feats[0] = F.pad(feats[0], (0,0,0,max_len-feats[0].shape[0]), mode='constant', value=0.0)
+            batched_inputs = pad_sequence(feats, batch_first=True, padding_value=0.0)
+            batched_inputs = batched_inputs.transpose(1, 2).contiguous()
+            # batched_inputs = feats[0].new_full(batch_shape, padding_val)
+            # for feat, pad_feat in zip(feats, batched_inputs):
+            #     pad_feat[..., :feat.shape[-1]].copy_(feat)
         else:
             assert len(video_list) == 1, "Only support batch_size = 1 during inference"
             # input length < self.max_seq_len, pad to max_seq_len
@@ -410,8 +415,10 @@ class PtTransformer(nn.Module):
                 stride = self.max_div_factor
                 max_len = (max_len + (stride - 1)) // stride * stride
             padding_size = [0, max_len - feats_lens[0]]
+            feats = [x.t() for x in feats]
             batched_inputs = F.pad(
                 feats[0], padding_size, value=padding_val).unsqueeze(0)
+            
 
         # generate the mask
         batched_masks = torch.arange(max_len)[None, :] < feats_lens[:, None]

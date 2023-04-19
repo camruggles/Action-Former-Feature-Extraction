@@ -24,13 +24,24 @@ def process(V):
       for i in range(0, V.shape[1], 500): # process only 500 at a time for memory purposes
           tmp = V[:,i:min(i+500, V.shape[1]), :, :]
           # perform center crop and resizing
-          tmp = crop(res(tmp/255.0)) # 
+          #   tmp = crop(res(tmp/255.0)) # 
+          tmp = res(tmp)
+          tmp = tmp.double()
+          tmp = tmp * 2 / 255 - 1
+          tmp = crop(tmp)
+          tmp = tmp.float()
           V2[:, i:min(i+500, V.shape[1]), :, :] = tmp
       a2 = V2
 
     else: # for videos of less than 500 frames, just do this instead
       V = V.permute(3,0,1,2)
-      a2 = crop(res(V/255.0))
+      #a2 = crop(res(V/255.0))
+      V = res(V)
+      V = V.double()
+      V = V * 2 / 255 - 1
+      V = crop(V)
+      V = V.float()
+      a2=V
     return a2
 
 @register_dataset("thumos")
@@ -214,7 +225,6 @@ class THUMOS14Dataset(Dataset):
                      'full_feats'      : copy.deepcopy(feats), # TODO check the copy operation
                      'tempinfo'        : (0,T), # used to mark which frames are having a feature update
                      'feat_num_frames' : self.num_frames}
-
         # truncate the features during training
         if self.is_training and (segments is not None):
             data_dict = truncate_feats(
@@ -233,7 +243,8 @@ class THUMOS14Dataset(Dataset):
         C,T = feats.shape
         (start_video,end_video) = data_dict['tempinfo'] # start and endpoints of trunc_feats subset from feature file
         num_clips_updated = self.num_clips_updated # the number M out of T clip features to update
-        feature_index = random.randint(start_video, end_video-2-M) # location of updated features in feature vector
+
+        feature_index = random.randint(start_video, end_video-2-num_clips_updated) # location of updated features in feature vector
         # sample between st and ed since a subset of the full features are selected in truncate feats
         frames = []
         if self.is_training:
@@ -243,18 +254,16 @@ class THUMOS14Dataset(Dataset):
 
         raw = [] # torch tensor of video frames
         fileframes = [] # torch tensor of indices where features in the .npy file will be updated
-        if self.is_training == False:
-           pass
-        else:
+        if self.is_training:
            # extract frame locations using stamps vector
            video = torchvision.io.read_video(filename, stamps[frame_index], stamps[frame_index+(num_clips_updated-1)*feat_stride+16], 'pts')[0] # note that read_video is inclusive of the second endpoint, so (M-1) is necessary
            video = process(video) # resize and perform center crop divide by 255
 
         if self.is_training:
-          for i in range(M): # check that all 16 frames are being loaded
+          for i in range(num_clips_updated): # check that all 16 frames are being loaded
             v = video[:,(i*feat_stride):(i*feat_stride+16), :,:] # get the video frames
             raw.append(v) # place them in update vector
-            frames.append(feature_index + i) # add index location where data dict is updated
+            frames.append(feature_index + i - start_video) # add index location where data dict is updated
             fileframes.append(feature_index + i) # add index location where the FILE is updated
             # note that the feature vector used by transformer is a subset of the features in the saved file
             # so it's necessary to update both the file and the data dict

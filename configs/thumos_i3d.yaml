@@ -9,7 +9,7 @@ dataset: {
   json_file: ./data/thumos/annotations/thumos14.json,
   feat_folder: ./data/thumos/i3d_features,
   val_path: /scratch/thumos/validation/,
-  # stampsfolder: /home/cruggles/THUMOS/valstamps/,
+  stampsfolder: ./scripts/stamps/,
   num_clips_updated: 40,
   file_prefix: ~,
   file_ext: .npy,
@@ -29,8 +29,8 @@ model: {
 }
 opt: {
   learning_rate: 0.0001,
-  ext_learning_rate: 0.00003,
-  epochs: 15,
+  ext_learning_rate: 0.00001,
+  epochs: 80,
   weight_decay: 0.05,
 }
 loader: {

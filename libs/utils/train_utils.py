@@ -29,12 +29,12 @@ def fix_random_seed(seed, include_cuda=True):
         # training: disable cudnn benchmark to ensure the reproducibility
         cudnn.enabled = True
         cudnn.benchmark = False
-        cudnn.deterministic = True
+        cudnn.deterministic = False
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         # this is needed for CUDA >= 10.2
         os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-        torch.use_deterministic_algorithms(True)
+        torch.use_deterministic_algorithms(False)
     else:
         cudnn.enabled = True
         cudnn.benchmark = True
@@ -310,7 +310,8 @@ def train_one_epoch(
             #newfeats = extractedfeats[indexer[i]:indexer[i+1], :] # uncomment for option two
             feats = video_list[i]['feats']
             frames = video_list[i]['frames']
-
+            # pdb.set_trace()
+            # print(newfeats.squeeze().t().cpu().shape, feats.shape, frames, video_list[i]['video_id'])
             feats[ :1024 , frames ] = newfeats.squeeze().t().cpu()
             video_list[i]['feats'] = feats
         # write feats to file, potential io bottleneck?
