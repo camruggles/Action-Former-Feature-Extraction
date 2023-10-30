@@ -354,25 +354,11 @@ class InceptionI3d(nn.Module):
 
 
     def forward(self, x):
-        #pdb.set_trace()
         for end_point in self.VALID_ENDPOINTS:
             if end_point in self.end_points:
                 x = self._modules[end_point](x)  # use _modules to work with dataparallel
-                #pdb.set_trace()
-
         x = self.avg_pool(x)
-        x = self.dropout(x)
-        #x2 = self.logits(x)
-        #print(x2.shape)
         return x
-        if self._spatial_squeeze:
-            logits = x.squeeze(3).squeeze(3)
-        #print(x.shape)
-        # logits is batch X time X classes, which is what we want to work with
-        #print('returning x')
-        #pdb.set_trace()
-        return x
-        #return logits
 
     def extract_features(self, x):
         output_dict = {}
@@ -401,7 +387,8 @@ class I3D_BackBone(nn.Module):
                                    name=name,
                                    in_channels=in_channels)
         print(self._model.end_points['Mixed_5c'])
-        self.freeze(freeze_layers)
+        self.freeze_layers = freeze_layers
+        self._freeze()
 
         self._model.build()
         self._freeze_bn = freeze_bn
@@ -417,7 +404,8 @@ class I3D_BackBone(nn.Module):
                 m.track_running_stats=False
                 m.requires_grad_(False)
                 m.eval()
-    def freeze(self, layers):
+    def _freeze(self):
+        layers=self.freeze_layers
         for layer in layers:
             assert layer in self._model.end_points.keys()
             section = self._model.end_points[layer]
@@ -427,6 +415,7 @@ class I3D_BackBone(nn.Module):
 
     def train(self, mode=True):
         super(I3D_BackBone, self).train(mode)
+        self._freeze()
         if self._freeze_bn and mode:
             # print('freeze all BatchNorm3d in I3D backbone.')
             for name, m in self._model.named_modules():

@@ -57,6 +57,8 @@ ls " folder where validation FEATURES are saved"     > transfer.txt
 
 use setfeatures.py to save the newly extracted features over the old files, where the optical flow data is saved
 
+then move these features into the data/thumos/i3d_features/ directory
+
 
 
 

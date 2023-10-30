@@ -39,6 +39,7 @@ def main(args):
         cfg['model']['test_cfg']['max_seg_num'] = args.topk
     pprint(cfg)
 
+
     """1. fix all randomness"""
     # fix the random seeds (this will fix everything)
     _ = fix_random_seed(0, include_cuda=True)
@@ -74,6 +75,7 @@ def main(args):
         ckpt_file,
         map_location = lambda storage, loc: storage.cuda(cfg['devices'][0])
     )
+
     # load ema model instead
     print("Loading from EMA model ...")
     model.load_state_dict(checkpoint['state_dict_ema'])

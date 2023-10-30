@@ -5,6 +5,7 @@ import time
 import pdb
 import datetime
 from pprint import pprint
+import gc
 
 # torch imports
 import torch
@@ -12,15 +13,15 @@ import torch.nn as nn
 import torch.utils.data
 # for visualization
 from torch.utils.tensorboard import SummaryWriter
-from libs.modeling import I3D_BackBone
 
 # our code
+from libs.modeling import I3D_BackBone
 from libs.core import load_config
 from libs.datasets import make_dataset, make_data_loader
 from libs.modeling import make_meta_arch
 from libs.utils import (train_one_epoch, valid_one_epoch, ANETdetection,
                         save_checkpoint, make_optimizer, make_scheduler,
-                        fix_random_seed, ModelEma)
+                        fix_random_seed, ModelEma, extract_video)
 
 ################################################################################
 def main(args):
@@ -34,6 +35,9 @@ def main(args):
     else:
         raise ValueError("Config file does not exist.")
     pprint(cfg)
+
+    if cfg['dataset_name'] == "thumos":
+        cfg['dataset']['is_resume'] = False
 
     # prep for output folder (based on time stamp)
     if not os.path.exists(cfg['output_folder']):
@@ -53,10 +57,12 @@ def main(args):
 
     # fix the random seeds (this will fix everything)
     rng_generator = fix_random_seed(cfg['init_rand_seed'], include_cuda=True)
+    if args.resume:
+        rng_generator = fix_random_seed(2023, include_cuda=True)
 
     # re-scale learning rate / # workers based on number of GPUs
     cfg['opt']["learning_rate"] *= len(cfg['devices'])
-    cfg['loader']['num_workers'] *= len(cfg['devices'])
+    cfg['loader']['num_workers'] =1#*= len(cfg['devices'])
 
     """2. create dataset / dataloader"""
     train_dataset = make_dataset(
@@ -73,23 +79,28 @@ def main(args):
     """3. create model, optimizer, and scheduler"""
     # model
     model = make_meta_arch(cfg['model_name'], **cfg['model'])
+
+    print(model)
+    # quit()
     # not ideal for multi GPU training, ok for now
     model = nn.DataParallel(model, device_ids=[0])#cfg['devices'])
 
     # TODO create feature extractor and load weights
     # selectively freezes layers of extractor network to save gpu memory
-    extractor = I3D_BackBone(final_endpoint='Logits', freeze_layers=['Conv3d_1a_7x7', 'MaxPool3d_2a_3x3', 'Conv3d_2b_1x1', 
-        'Conv3d_2c_3x3', 
-        'MaxPool3d_3a_3x3'])
+    extractor = I3D_BackBone(final_endpoint='Logits', 
+        freeze_layers=[])
+        # 'Conv3d_2b_1x1', 
+        # 'Conv3d_2c_3x3', 
+        # 'MaxPool3d_3a_3x3',
         # 'Mixed_3b',
-        # 'Mixed_3c',
+        # 'Mixed_3c'])
         # 'MaxPool3d_4a_3x3',
-        # 'Mixed_4b'])
+        # 'Mixed_4b'
     extractor.disable_bn()
     extractor.load_pretrained_weight(cfg['extractor_path'])
-
     extractor = nn.DataParallel(extractor, device_ids=cfg['ext_devices'])
     extractor = extractor.to(torch.device("cuda:0"))
+
 
     # optimizer
     optimizer = make_optimizer(model, extractor, cfg['opt'])
@@ -98,15 +109,17 @@ def main(args):
     scheduler = make_scheduler(optimizer, cfg['opt'], num_iters_per_epoch)
     # enable model EMA
     print("Using model EMA ...")
-    model_ema = ModelEma(model)
+    model_ema = ModelEma(model, device=torch.device("cpu"))
     print('ema', model_ema.module.module.device)
+    extractor_ema = None#ModelEma(extractor, device=torch.device("cpu"))
+
 
     """4. Resume from model / Misc"""
     # resume from a checkpoint?
     if args.resume:
         if os.path.isfile(args.resume):
             # load ckpt, reset epoch / best rmse
-            checkpoint = torch.load(args.resume,
+            checkpoint = torch.load(args.resume, 
                 map_location = lambda storage, loc: storage.cuda(
                     cfg['devices'][0]))
             args.start_epoch = checkpoint['epoch'] + 1
@@ -118,11 +131,26 @@ def main(args):
             print("=> loaded checkpoint '{:s}' (epoch {:d}".format(
                 args.resume, checkpoint['epoch']
             ))
+            ckpt = torch.load("/home/cruggles/actionformer_release-main/ckpt/thumos_i3d_final/i3drgb_thumos_epoch_030.pt")
+            extractor.module._model.load_state_dict(ckpt)
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
             return
 
     # save the current config
+
+    # loading in a new state dict
+    alternating = False
+    if alternating:
+        checkpoint = torch.load("/home/cruggles/clean/actionformer_release/ckpt/thumos_i3d_reproduce/epoch_035.pth.tar")
+        model.load_state_dict(checkpoint['state_dict'])
+
+        del checkpoint
+        torch.cuda.empty_cache()
+        gc.collect()
+
+
+
     with open(os.path.join(ckpt_folder, 'config.txt'), 'w') as fid:
         pprint(cfg, stream=fid)
         fid.flush()
@@ -135,6 +163,10 @@ def main(args):
         'early_stop_epochs',
         cfg['opt']['epochs'] + cfg['opt']['warmup_epochs']
     )
+    # if args.resume:
+    #     extractor2 = extractor
+    #     extractor=None
+    
     for epoch in range(args.start_epoch, max_epochs):
         # train for one epoch
         # TODO create extractor and add to model inputs
@@ -146,10 +178,20 @@ def main(args):
             extractor,
             epoch,
             model_ema = model_ema,
+            extractor_ema=extractor_ema,
             clip_grad_l2norm = cfg['train_cfg']['clip_grad_l2norm'],
             tb_writer=tb_writer,
             print_freq=args.print_freq
         )
+        print(optimizer)
+        # if epoch == 2:
+        #     print("train.py line 183 quitting after two epoch")
+        #     quit()
+
+        # if epoch >= 5:
+        #     feat_load_path = os.path.abspath(cfg['dataset']['val_path'])
+        #     feat_save_path = os.path.abspath(cfg['dataset']['feat_folder'])
+        #     extract_video(extractor, feat_load_path, feat_save_path)
 
         # save ckpt once in a while
         if (
@@ -174,7 +216,12 @@ def main(args):
                 file_folder=ckpt_folder,
                 file_name='epoch_{:03d}.pth.tar'.format(epoch)
             )
-            torch.save(extractor.module._model.state_dict(), ckpt_folder + '/i3drgb_thumos_epoch_{:03d}.pt'.format(epoch) )
+            if True:#not args.resume:
+                torch.save(extractor.module._model.state_dict(), ckpt_folder + '/i3drgb_thumos_epoch_{:03d}.pt'.format(epoch) )
+                if extractor_ema is not None: torch.save(extractor_ema.module.module._model.state_dict(), ckpt_folder + '/i3drgb_thumos_ema_epoch_{:03d}.pt'.format(epoch) )
+                
+            else:
+                torch.save(extractor2.module._model.state_dict(), ckpt_folder + '/i3drgb_thumos_epoch_{:03d}.pt'.format(epoch) )
 
     # wrap up
     tb_writer.close()

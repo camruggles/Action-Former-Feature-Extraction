@@ -13,7 +13,6 @@ from copy import deepcopy
 import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
-from .video_extract import extract_feats, extract_raw
 
 from .lr_schedulers import LinearWarmupMultiStepLR, LinearWarmupCosineAnnealingLR
 from .postprocessing import postprocess_results
@@ -30,12 +29,12 @@ def fix_random_seed(seed, include_cuda=True):
         # training: disable cudnn benchmark to ensure the reproducibility
         cudnn.enabled = True
         cudnn.benchmark = False
-        cudnn.deterministic = False
+        cudnn.deterministic = True
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         # this is needed for CUDA >= 10.2
         os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-        torch.use_deterministic_algorithms(False)
+        torch.use_deterministic_algorithms(True)
     else:
         cudnn.enabled = True
         cudnn.benchmark = True
@@ -260,7 +259,6 @@ def train_one_epoch(
     extractor,
     curr_epoch,
     model_ema = None,
-    extractor_ema=None,
     clip_grad_l2norm = -1,
     tb_writer = None,
     print_freq = 20
@@ -282,38 +280,7 @@ def train_one_epoch(
     print('start', datetime.datetime.now())
     for iter_idx, video_list in enumerate(train_loader, 0):
         # zero out optim
-
-        '''
-        TODO extract new features for video
-        get tempinfo
-
-        
-           call extract_video
-
-        modify extract_video to read frames only from st to ed, when it loads the video in
-        get the new feats and put them in the 'feats' data dict
-        '''
-        # if video_list[0]['video_id'] != 'video_validation_0000363s' and video_list[1]['video_id'] != 'video_validation_0000363':
-        #     continue
-        importance_sampling=True
-        full_grad_training=False
-        if full_grad_training:
-            # print(video_list)
-            with torch.no_grad():
-                for i in range(len(video_list)):
-                    # print(video_list[i]['feats'].shape)
-                    (st,ed) = video_list[i]['tempinfo']
-                    ret = extract_feats(extractor, "/home/cruggles/cruggles2/thumos/val_videos/", video_list[i]['video_id'] + ".mp4", tempinfo=(st,ed))
-                    # pdb.set_trace()
-                    ret = torch.from_numpy(ret.T)
-                    final_index = min(video_list[i]['feats'].shape[1], ret.shape[1])
-                    video_list[i]['feats'][:1024,:] = ret[:, :final_index]
-                    # print(video_list[i]['feats'].shape)
-            optimizer.zero_grad()
-            # print(video_list)
-        if importance_sampling or full_grad_training:
-            for i in range(len(video_list)):
-                video_list[i]['feats'].requires_grad=True
+        optimizer.zero_grad()
         
         # forward / backward the model
         # get raw video and add the first model extraction features task
@@ -322,90 +289,65 @@ def train_one_epoch(
         # one : gets each video and extracts features for both one at a time
         # two: stacks frames for all videos and extracts features all at once
         indexer = [0]
-        if extractor is not None:
-            for i in range(len(video_list)):
-                break # comment out for option two
-                v = video_list[i]['raw']
-                indexer.append(indexer[-1] + v.shape[0])
-            clipstack = torch.empty(0,3,16,224,224)
-            
-            for i in range(len(video_list)):
-                break # comment out for option two
-                v = video_list[i]['raw']
-                clipstack = torch.cat([clipstack, v], dim=0)
-                #clipstack[indexer[i]:indexer[i+1], :] = v
+        for i in range(len(video_list)):
+            break # comment out for option two
+            v = video_list[i]['raw']
+            indexer.append(indexer[-1] + v.shape[0])
+        clipstack = torch.empty(0,3,16,224,224)
 
-            #extractedfeats = extractor(clipstack) # uncomment for option two
-            for i in range(len(video_list)):
-                # comment these lines out for option two
-                partial_feats=False
-                if partial_feats:
-                    v = video_list[i]['raw']
-                    newfeats = extractor(v)
-                    # pdb.set_trace()
+        for i in range(len(video_list)):
+            break # comment out for option two
+            v = video_list[i]['raw']
+            clipstack = torch.cat([clipstack, v], sdim=0)
+            #clipstack[indexer[i]:indexer[i+1], :] = v
 
-                    #newfeats = extractedfeats[indexer[i]:indexer[i+1], :] # uncomment for option two
-                    feats = video_list[i]['feats']
-                    frames = video_list[i]['frames']
+        #extractedfeats = extractor(clipstack) # uncomment for option two
+        for i in range(len(video_list)):
+            break
+            # comment these lines out for option two
+            v = video_list[i]['raw']
+            newfeats = extractor(v)
 
+            #newfeats = extractedfeats[indexer[i]:indexer[i+1], :] # uncomment for option two
+            feats = video_list[i]['feats']
+            frames = video_list[i]['frames']
 
-
-                    feats[ :1024 , frames ] = newfeats.squeeze().t().cpu()
-                    video_list[i]['feats'] = feats
-                # write feats to file, potential io bottleneck?
-
-                save_feats=True
-                if save_feats and partial_feats:
-                    file_name = os.path.join("/home/cruggles/actionformer_release-main/data/thumos/i3d_features", video_list[i]['video_id'] + '.npy')
-                    savefeats = np.load(file_name)
-                    oldfeats = savefeats[video_list[i]['fileframes'], :1024]
-                    theta=0.9
-                    savefeats[video_list[i]['fileframes'], :1024] = (theta) * oldfeats + (1-theta)*newfeats.squeeze().detach().cpu().numpy()
-                    # savefeats[video_list[i]['fileframes'], :1024] = newfeats.squeeze().detach().cpu().numpy()
-                    np.save(file_name, savefeats)
-        '''
-        TODO make sure features have requires grad turned ons
-        data_dict['feat's].requires_grad=True
-        '''
+            feats[ :1024 , frames ] = newfeats.squeeze().t().cpu()
+            video_list[i]['feats'] = feats
+        # write feats to file, potential io bottleneck?
+            file_name = os.path.join("/home/cruggles/actionformer_release-main/data/thumos/i3d_features", video_list[i]['video_id'] + '.npy')
+            savefeats = np.load(file_name)
+            savefeats[video_list[i]['fileframes'], :1024] = newfeats.squeeze().detach().cpu().numpy()
+            np.save(file_name, savefeats)
+        # pdb.set_trace()
+        for i in range(len(video_list)):
+            video_list[i]['feats'].requires_grad=True
+        # video_list = [x['feats'] for x in video_list]
         losses = model(video_list)
         losses['final_loss'].backward()
+# model.module.backbone.embd[0]
+        def cosineSim(x,y):
+            x2 = x / torch.norm(x)
+            y2 = y / torch.norm(y)
 
-        def dumpCuda():
-            t = torch.cuda.get_device_properties(0).total_memory
-            r = torch.cuda.memory_reserved(0)
-            a = torch.cuda.memory_allocated(0)
-            f = r-a  # free inside reserved
-            print(t/1e9,r/1e9,a/1e9,f/1e9)
-            t = torch.cuda.get_device_properties(1).total_memory
-            r = torch.cuda.memory_reserved(1)
-            a = torch.cuda.memory_allocated(1)
-            f = r-a  # free inside reserved
-            print(t/1e9,r/1e9,a/1e9,f/1e9)
-            print()
+            theta=torch.dot(x2,y2)
+            print(theta)
 
-        # dumpCuda()
+        for i in range(len(video_list)):
+            g = video_list[i]['feats'].grad[:1024,:]
+            for j in range(g.shape[1]-4):
+                g1 = g[:1024, j]
+                g2 = g[:1024, j+1]
+                g3 = g[:1024, j+2]
+                g4 = g[:1024, j+3]
+                g5 = g[:1024, j+4]
 
-        '''
-        TODO save the gradients for the features and then set them to none
-        datadict feats .grad -> saved_gradients
-        '''
-        if full_grad_training:
-            saved_grad = []
-            for i in range(len(video_list)):
-                saved_grad.append(video_list[i]['feats'].grad.detach().cpu())
+                cosineSim(g1,g2)
+                cosineSim(g1,g3)
+                cosineSim(g1,g4)
+                cosineSim(g1,g5)
+                print()
 
-            actionformer_grads = {}
-            for name, param in model.named_parameters():
-                # print(name,param.grad is None)
-                if param.grad is not None:
-                    actionformer_grads[name] = actionformer_grads.get(name, torch.zeros(param.shape).cpu()) + param.grad.detach().cpu()
-        
-        if importance_sampling:
-            print(video_list[i]['feats'].grad.shape)
-            quit()
-            grad = video_list[i]['feats'].grad
-            for j in range(grad.shape[0]):
-                norms.append(torch.norm(grad[j,:]))
 
 
 
@@ -416,137 +358,14 @@ def train_one_epoch(
                 clip_grad_l2norm
             )
         # step optimizer / scheduler
+        # optimizer.zero_grad()
         # optimizer.step()
-        # dumpCuda()
+        # scheduler.step()
         #del feats,newfeats
-        from math import ceil
-        full_grads = {}
-
-        
-        if full_grad_training:
-            num_load_divisions=5
-            raw_load_inc = 50
-            for i in range(len(video_list)):
-                (st,ed) = video_list[i]['tempinfo']
-                num_feats = video_list[i]['feats'].shape[1]
-                # print('num feats', ed-st, num_feats, st, ed, st-st, ed-st)
-                if ed-st > 2304:
-                    ed = st+2303
-                quarter_increment = ceil(num_feats / num_load_divisions)
-                num_forwards = ceil(quarter_increment / raw_load_inc)
-                # print(video_list[i]['feats'].shape)
-                # print(num_feats)
-                # print(quarter_increment)
-                # print(num_forwards)
-                for j in range(num_load_divisions):
-
-                    # get 1/5 of the raw clips needed for this update
-                    tmp_st = st + j * quarter_increment
-                    tmp_ed = min(st + (j+1) * quarter_increment,ed)
-                    raw = extract_raw(extractor, "/home/cruggles/cruggles2/thumos/val_videos/", video_list[i]['video_id'] + ".mp4", tempinfo=(tmp_st,tmp_ed))
-                    # print("tmp st ed", tmp_st, tmp_ed, raw.shape, st, ed, tmp_ed - tmp_st)
-                    if tmp_ed - tmp_st != raw.shape[0]:
-                        pass
-                    tmp_raw_idx = min(tmp_ed-tmp_st, raw.shape[0])
-                    raw = raw[:tmp_raw_idx,:]
-                    # print("tmp st ed", tmp_st, tmp_ed, raw.shape, st, ed, tmp_ed - tmp_st)
-                    # pdb.set_trace()
-                    for k in range(num_forwards):
-                        # break that into 30 at a time and then compute some gradients with forward/backward
-                        tmp_grad_idx1 = j*quarter_increment + k * raw_load_inc
-                        tmp_grad_idx2 = min( (j+1) *quarter_increment, j*quarter_increment + (k+1) * raw_load_inc)
-                        substack_idx1 = k * raw_load_inc
-                        substack_idx2 = min((k+1) * raw_load_inc, quarter_increment)
-                        # print("  ", "dxs",substack_idx1, substack_idx2, tmp_grad_idx1, tmp_grad_idx2)
-                        tmp_raw = raw[substack_idx1:substack_idx2, :]
-                        # pdb.set_trace()
-                        # dumpCuda()
-                        optimizer.zero_grad()
-                        # dumpCuda()
-                        tmp_feats = extractor(tmp_raw).squeeze()
-                        # dumpCuda()
-                        tmp_grads = saved_grad[i][:1024, tmp_grad_idx1:tmp_grad_idx2].t().cuda()
-                        # dumpCuda()
-                        # print("  ", "shapes", tmp_grads.shape, tmp_feats.shape, saved_grad[i].shape)
-                        loss_partial = torch.sum(tmp_feats * tmp_grads)
-                        # dumpCuda()
-                        loss_partial.backward()
-                        # dumpCuda()       
-                        for name, param in extractor.named_parameters():
-                            # print(name,param.grad is None)
-                            if param.grad is not None:
-                                full_grads[name] = full_grads.get(name, torch.zeros(param.shape).cpu()) + param.grad.detach().cpu()
-
-
-
-            for name, param in extractor.named_parameters():
-                loaded_grad = full_grads.get(name, None)
-                if loaded_grad is not None:
-                    param.grad = loaded_grad.cuda()
-            for name, param in model.named_parameters():
-                loaded_grad = actionformer_grads.get(name, None)
-                if loaded_grad is not None:
-                    param.grad = loaded_grad.cuda()
-        optimizer.step()
-        scheduler.step()
-        if curr_epoch >= 5:
-            # pass
-            optimizer.param_groups[0]['lr'] = 1e-4
-
-
-
-        '''
-        load 1/4 of the raw clips at a time
-        from there feed 30 clips through the network
-        need: 
-        the 30 indices relative to the sub stack,
-        i*30, (i+1)  * 30, min that and quarter increment
-        and the 30 indices relative to the temp grad
-        j=0:5
-        j*inc+i*30, min( (j+1) *inc, j*inc + (i+1) * inc)
-        get the 30 gradients that will correspond tot he output, dot product, sum, back prop
-
-        '''
-
-
-
-        '''
-        TODO get the indices of the clips that were used
-
-        get 30 or so at a time
-        repeat
-            get their clips
-            raw = extract_raw(extractor, "/scratch/thumos/test/", video_list[i]['video_id'] + ".mp4", tempinfo=(st,ed))
-            forward the clip
-        feats = extractor(raw)
-
-            compute the loss
-        loss = torch.sum(temp_grad[i] * feats)
-
-            backward,
-        loss.backward()
-
-
-
-
-            get and add gradients
-
-            zero grad
-        repeat
-
-        place full gradient into each param field
-
-        for name, param in model.named_parameters():
-            param.weight.grad = full_grads[name].cuda()
-            
-        optimizer.step()
-
-        '''
 
         if model_ema is not None:
             model_ema.update(model)
-        if extractor_ema is not None:
-            extractor_ema.update(extractor)
+
         # printing (only check the stats when necessary to avoid extra cost)
         if (iter_idx != 0) and (iter_idx % print_freq) == 0:
             # measure elapsed time (sync all kernels)
@@ -610,11 +429,11 @@ def train_one_epoch(
             print('\t'.join([block1, block2, block3, block4]))
             print('Wall Clock', datetime.datetime.now())
 
-
     # finish up and print
     lr = scheduler.get_last_lr()[0]
     print("[Train]: Epoch {:d} finished with lr={:.8f}\n".format(curr_epoch, lr))
     print("Epoch Time :", datetime.datetime.now())
+    quit()
     return
 
 
